@@ -3,14 +3,13 @@
 #include <DallasTemperature.h>
 
 // Имя и пароль вашей сети WiFi
-const char* ssid = "Explabs_Robotics";
-const char* password = "Huttka18";
-
+const char* ssid = "Explabs";
+const char* password = "Huttka12";
+IPAddress ip(192,168,31,31);
 #define ONE_WIRE_BUS 5
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature DS18B20(&oneWire);
 char temperatureCString[6];
-char temperatureFString[6];
 
 // Создаем сервер и порт для прослушки 80
  
@@ -39,11 +38,9 @@ void setup() {
  Serial.print(".");
  }
  Serial.println("");
- Serial.println("WiFi connected");
  
  // Запуск сервера
  server.begin();
- Serial.println("Server started");
  
  // Вывод полученного IP адреса
  Serial.println(WiFi.localIP());
@@ -51,13 +48,10 @@ void setup() {
 
 void getTemperature() {
   float tempC;
-  float tempF;
   do {
     DS18B20.requestTemperatures();
     tempC = DS18B20.getTempCByIndex(0);
     dtostrf(tempC, 2, 2, temperatureCString);
-    tempF = DS18B20.getTempFByIndex(0);
-    dtostrf(tempF, 3, 2, temperatureFString);
     delay(100);
   } while (tempC == 85.0 || tempC == (-127.0));
 }
@@ -69,34 +63,56 @@ void loop() {
  if (!client) {
  return;
  }
+ else {
  
  // Ожидание данных
  Serial.println("new client");
+ int count;
  while (!client.available()) {
- delay(1);
+ if (count >= 3){break;}
+ delay(100);
+ count++;
  }
- 
- boolean blank_line = true;
  
  // Чтение первой строки запроса
  String req = client.readStringUntil('\r');
  Serial.println(req);
- client.flush(); 
-  if(req.indexOf("status") != -1){
+ client.flush();
+ 
+  int temp;
+ 
+ if(req.indexOf("status") != -1){
     getTemperature();
     Serial.println(temperatureCString);
  }
  // Работа с GPIO
  if (req.indexOf("start") != -1){
+   if(req.indexOf("?") != -1){
+    int len = req.length();
+    int temp1 = req.indexOf("=");
+    String temp2 = "";
+    while(temp1 != len){
+      temp1 += 1;
+      if(req[temp1] == ' '){
+       break;
+      }
+      temp2 += req[temp1];
+    }
+    
+    temp = temp2.toInt();
+    if(temp > 100){temp=100;}
+    delay(200);
+  }
+  else {
+    temp = 100;
+  }
+  Serial.print("OK ");
+  Serial.println(temp);
   digitalWrite(4, 1);
  }
  if (req.indexOf("stop") != -1){
+  Serial.println("STOP");
   digitalWrite(4, 0);
- }
- else if (req.indexOf("stop") != -1) {
-  digitalWrite(4, 0);
- client.stop();
- return;
  }
  else
  // Если неверный запрос написать об ошибке
@@ -104,5 +120,6 @@ void loop() {
  Serial.println("invalid request");
  client.stop();
  return;
+ }
  }
 }
